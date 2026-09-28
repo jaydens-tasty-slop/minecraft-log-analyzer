@@ -1,0 +1,9 @@
+/minecraft-logs.db
+/minecraft-logs.db-shm
+/minecraft-logs.db-wal
+/report/
+/mclog
+/minecraft-log-analyzer
+logs/mclogs/*
+/demo/*.db-shm
+/demo/*.db-wal

@@ -1,0 +1,74 @@
+name: Release master build
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-master-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install branch coverage analyzer
+        run: |
+          go install github.com/rillig/gobco@v1.3.4
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Test and enforce coverage thresholds
+        run: scripts/coverage.sh
+
+      - name: Build demo site
+        run: scripts/build-demo.sh
+
+      - name: Commit refreshed demo site
+        run: |
+          if [ -z "$(git status --porcelain -- docs)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "docs: refresh demo site [skip ci]"
+          git push
+
+      - name: Build Linux binary
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags="-s -w" -o dist/minecraft-log-analyzer-linux-amd64
+          cd dist
+          sha256sum minecraft-log-analyzer-linux-amd64 > minecraft-log-analyzer-linux-amd64.sha256
+
+      - name: Create release and attach binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="master-${GITHUB_SHA}"
+          title="master ${GITHUB_SHA::7}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/minecraft-log-analyzer-linux-amd64 dist/minecraft-log-analyzer-linux-amd64.sha256 --clobber
+          else
+            gh release create "$tag" dist/minecraft-log-analyzer-linux-amd64 dist/minecraft-log-analyzer-linux-amd64.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --generate-notes
+          fi
