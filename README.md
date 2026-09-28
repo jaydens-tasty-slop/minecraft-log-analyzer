@@ -9,7 +9,7 @@ play time and sessions and spits out plain HTML reports. Intended to be run
 as a cronjob. No plugins required. Has been tested against Paper up to 1.18.2 and
 about 120 unique players.
 
-[See the demo here](example.com)
+[See the demo here](https://jaydens-tasty-slop.github.io/minecraft-log-analyzer/)
 
 Here is an incomplete list of 
 
